@@ -1038,7 +1038,7 @@ function renderBuddies(list) {
         (b.target_book ? '<div class="buddy-book">📖 ' + b.target_book + '</div>' : '') +
       '</div>' +
       '<button class="nudge-btn" id="nudge-' + b.id + '" ' +
-        'onclick="sendNudge('' + b.id + '','' + safe + '')">👋 콕 찌르기</button>' +
+        `onclick="sendNudge('${b.id}', '${safe}')">👋 콕 찌르기</button>` +
     '</div>';
   }).join('');
 }
