@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Book Buddy 📖</title>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+
+  <style>
+    /* ── RESET & ROOT ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:           #F9F6F0;
+      --bg2:          #F2EDE4;
+      --card:         rgba(255, 255, 255, 0.80);
+      --card-border:  rgba(180, 155, 130, 0.28);
+      --card-shadow:  0 2px 14px rgba(100, 70, 40, 0.09);
+      --rose:         #C9717A;
+      --rose-light:   #F7E8E9;
+      --rose-border:  #E8B4B8;
+      --rose-dark:    #A85660;
+      --lavender:     #9B8EC4;
+      --lav-light:    #EEE9F7;
+      --lav-border:   #C8BEDF;
+      --gold:         #B87333;
+      --gold-light:   #FBF0E0;
+      --gold-border:  #DEAD88;
+      --green:        #5A9E7A;
+      --text:         #2C2520;
+      --text-sub:     #5C4D42;
+      --text-muted:   #9A8878;
+      --r:            14px;
+      --r-sm:         9px;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg2);
+      font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+      color: var(--text);
+    }
+
+    /* ── APP SHELL ── */
+    #app {
+      max-width: 480px;
+      min-height: 100dvh;
+      margin: 0 auto;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── SCREENS ── */
+    .screen { display: none; flex-direction: column; flex: 1; min-height: 100dvh; }
+    .screen.active { display: flex; }
+
+    /* ── AUTH ── */
+    .auth-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; padding: 36px 28px; gap: 20px;
+    }
+    .auth-logo { text-align: center; margin-bottom: 4px; }
+    .auth-logo-icon { font-size: 48px; margin-bottom: 8px; display: block; }
+    .auth-logo h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    .auth-logo p  { font-size: 14px; color: var(--text-muted); margin-top: 5px; }
+
+    .auth-card {
+      background: var(--card);
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--r);
+      box-shadow: var(--card-shadow);
+      padding: 24px; display: flex; flex-direction: column; gap: 14px;
+    }
+    .field-label {
+      font-size: 12px; font-weight: 700; color: var(--text-sub);
+      letter-spacing: .3px; margin-bottom: 5px; display: block;
+    }
+    .field-input {
+      width: 100%; background: #fff;
+      border: 1.5px solid #D6C9BC; border-radius: var(--r-sm);
+      padding: 11px 14px; color: var(--text);
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field-input::placeholder { color: #C2B3A8; }
+    .field-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,113,122,.12); }
+
+    .btn-primary {
+      width: 100%; background: var(--rose); border: none;
+      border-radius: var(--r-sm); padding: 12px 16px;
+      color: #fff; font-size: 15px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+    .btn-primary:hover  { background: var(--rose-dark); }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .6; cursor: default; }
+
+    .btn-outline {
+      width: 100%; background: #fff;
+      border: 1.5px solid #C9B4AA; border-radius: var(--r-sm);
+      padding: 11px 16px; color: var(--text-sub);
+      font-size: 14px; font-family: inherit; cursor: pointer;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .btn-outline:hover { border-color: var(--rose); color: var(--rose); background: var(--rose-light); }
+
+    .auth-switch { text-align: center; font-size: 13px; color: var(--text-muted); }
+    .auth-switch span { color: var(--rose); font-weight: 600; cursor: pointer; }
+    .auth-switch span:hover { text-decoration: underline; }
+
+    .err-msg { font-size: 12px; color: #C94040; text-align: center; display: none; }
+    .err-msg.show { display: block; }
+
+    /* ── CONNECT ── */
+    .step-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--lav-light); border: 1.5px solid var(--lav-border);
+      border-radius: 20px; padding: 5px 13px;
+      font-size: 12px; color: var(--lavender); font-weight: 700;
+    }
+    .code-box {
+      background: var(--lav-light); border: 1.5px dashed var(--lav-border);
+      border-radius: var(--r-sm); padding: 14px; text-align: center;
+    }
+    .code-box .code {
+      font-size: 15px; font-weight: 800; color: var(--lavender);
+      letter-spacing: 2px; font-family: 'Courier New', monospace;
+      word-break: break-all;
+    }
+    .code-box .code-hint { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-muted); font-size: 12px;
+    }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #DDD3C8; }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 15px 20px 12px;
+      background: rgba(255,255,255,.90);
+      border-bottom: 1px solid rgba(180,155,130,.22);
+      flex-shrink: 0;
+    }
+    .topbar-logo { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+    .topbar-btn {
+      background: #fff; border: 1.5px solid #C9B4AA;
+      color: var(--text-sub); border-radius: var(--r-sm);
+      padding: 6px 11px; cursor: pointer; font-size: 15px;
+      display: flex; align-items: center; gap: 4px;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .topbar-btn:hover { border-color: var(--rose); color: var(--rose); background: var(--rose-light); }
+
+    /* ── CONTENT ── */
+    .content {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 13px;
+      background: var(--bg);
+    }
+    .content::-webkit-scrollbar { display: none; }
+    .sec-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.3px; color: var(--text-muted); margin-bottom: 4px;
+    }
+    .card {
+      background: var(--card); border: 1.5px solid var(--card-border);
+      border-radius: var(--r); box-shadow: var(--card-shadow); padding: 16px;
+    }
+
+    /* ── STATUS CARD ── */
+    .status-pill { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .dot-on    { background: var(--rose); }
+    .dot-off   { background: #C8BAB0; }
+    .dot-green { background: var(--green); }
+    .status-text { font-size: 15px; font-weight: 600; }
+    .reading-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--rose-light); border: 1.5px solid var(--rose-border);
+      border-radius: 20px; padding: 5px 12px;
+      font-size: 13px; color: var(--rose-dark); font-weight: 600; margin-bottom: 12px;
+    }
+    .book-input-wrap { margin-bottom: 12px; display: none; }
+    .book-input-wrap.visible { display: block; }
+    .book-input {
+      width: 100%; background: #fff;
+      border: 1.5px solid #D6C9BC; border-radius: var(--r-sm);
+      padding: 10px 14px; color: var(--text);
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .book-input::placeholder { color: #C2B3A8; }
+    .book-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,113,122,.12); }
+    .btn-reading {
+      width: 100%; background: var(--rose); border: none;
+      border-radius: var(--r-sm); padding: 11px;
+      color: #fff; font-size: 14px; font-weight: 700;
+      font-family: inherit; cursor: pointer; transition: background .2s, transform .1s;
+    }
+    .btn-reading:hover  { background: var(--rose-dark); }
+    .btn-reading:active { transform: scale(.98); }
+    .btn-stop {
+      width: 100%; background: #fff;
+      border: 1.5px solid var(--rose-border); border-radius: var(--r-sm);
+      padding: 10px; color: var(--rose-dark); font-size: 14px; font-weight: 700;
+      font-family: inherit; cursor: pointer; transition: background .2s;
+    }
+    .btn-stop:hover { background: var(--rose-light); }
+
+    /* ── BUDDY CARD ── */
+    .buddy-row {
+      background: var(--card); border: 1.5px solid var(--card-border);
+      border-radius: var(--r); box-shadow: var(--card-shadow);
+      padding: 13px 15px; display: flex; align-items: center; gap: 11px;
+      margin-bottom: 8px;
+    }
+    .buddy-row:last-child { margin-bottom: 0; }
+    .buddy-ava {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--rose-light); border: 1.5px solid var(--rose-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: var(--rose-dark); flex-shrink: 0;
+    }
+    .buddy-info { flex: 1; min-width: 0; }
+    .buddy-name { font-size: 14px; font-weight: 600; }
+    .buddy-status-line { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-sub); margin-top: 3px; }
+    .buddy-book { font-size: 11px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nudge-btn {
+      background: var(--gold-light); border: 1.5px solid var(--gold-border);
+      color: var(--gold); border-radius: var(--r-sm);
+      padding: 7px 11px; font-size: 13px; font-weight: 600;
+      font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: background .2s, transform .1s;
+    }
+    .nudge-btn:hover  { background: #F5E4C8; }
+    .nudge-btn:active { transform: scale(.95); }
+    .nudge-btn.sent   { opacity: .55; cursor: default; }
+
+    /* ── TOAST ── */
+    .nudge-toast {
+      position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+      width: min(calc(100% - 32px), 448px);
+      background: #FFF8EC; border: 1.5px solid var(--gold-border);
+      border-radius: var(--r); box-shadow: 0 4px 20px rgba(184,115,51,.18);
+      padding: 13px 15px; display: none; align-items: center; gap: 10px; z-index: 999;
+      animation: slideD .22s ease;
+    }
+    .nudge-toast.show { display: flex; }
+    @keyframes slideD { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    .toast-title { font-size: 13px; font-weight: 700; color: var(--gold); }
+    .toast-sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .toast-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; margin-left: auto; }
+
+    /* ── NAV ── */
+    .nav-bar {
+      display: flex; background: rgba(255,255,255,.92);
+      border-top: 1px solid rgba(180,155,130,.22); flex-shrink: 0;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 10px 0 14px; cursor: pointer; background: none; border: none;
+      color: #B0A098; font-size: 11px; font-weight: 500; font-family: inherit;
+      transition: color .2s;
+    }
+    .nav-btn i { font-size: 21px; }
+    .nav-btn.active { color: var(--rose); }
+
+    /* ── FEED ── */
+    .feed-card {
+      background: var(--card); border: 1.5px solid var(--card-border);
+      border-radius: var(--r); box-shadow: var(--card-shadow);
+      overflow: hidden; margin-bottom: 10px;
+    }
+    .feed-card:last-child { margin-bottom: 0; }
+    .feed-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px; }
+    .feed-author-row { display: flex; align-items: center; gap: 8px; }
+    .feed-ava {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--rose-light); border: 1.5px solid var(--rose-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: var(--rose-dark);
+    }
+    .feed-name { font-size: 14px; font-weight: 600; }
+    .feed-time { font-size: 11px; color: var(--text-muted); }
+    .feed-acts { display: flex; gap: 6px; }
+    .feed-act-btn {
+      background: #fff; border: 1.5px solid #D6C9BC; color: var(--text-sub);
+      border-radius: 6px; padding: 4px 9px; cursor: pointer; font-size: 12px;
+      display: flex; align-items: center; gap: 3px; font-family: inherit;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .feed-act-btn:hover     { border-color: var(--rose); color: var(--rose); background: var(--rose-light); }
+    .feed-act-btn.del:hover { border-color: #C94040; color: #C94040; background: #FDEAEA; }
+    .feed-body   { padding: 0 14px 14px; }
+    .feed-title  { font-size: 13px; font-weight: 700; color: var(--rose-dark); display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .feed-pages  { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+    .feed-img-wrap { border-radius: 8px; overflow: hidden; margin: 8px 0; max-height: 180px; border: 1px solid var(--card-border); }
+    .feed-img-wrap img { width: 100%; object-fit: cover; display: block; }
+    .feed-content { font-size: 13px; color: var(--text-sub); line-height: 1.65; margin-top: 6px; }
+
+    /* ── SETTINGS ── */
+    .set-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--card); border: 1.5px solid var(--card-border);
+      border-radius: var(--r); box-shadow: var(--card-shadow);
+      padding: 13px 15px; margin-bottom: 8px;
+    }
+    .set-label { font-size: 14px; font-weight: 600; }
+    .set-value { font-size: 13px; color: var(--text-sub); }
+    .toggle {
+      width: 44px; height: 24px; background: #D6C9BC;
+      border: 1.5px solid #C9B4AA; border-radius: 12px;
+      cursor: pointer; position: relative; transition: background .25s, border-color .25s;
+    }
+    .toggle.on { background: var(--rose); border-color: var(--rose-dark); }
+    .toggle::after {
+      content: ''; position: absolute; left: 2px; top: 2px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: transform .25s; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    }
+    .toggle.on::after { transform: translateX(20px); }
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .set-input {
+      flex: 1; min-width: 0; background: #fff;
+      border: 1.5px solid #D6C9BC; border-radius: var(--r-sm);
+      padding: 7px 11px; color: var(--text);
+      font-size: 13px; font-family: inherit; outline: none;
+      transition: border-color .2s;
+    }
+    .set-input:focus { border-color: var(--rose); }
+    .set-save-btn {
+      background: var(--rose); border: none; border-radius: var(--r-sm);
+      padding: 7px 13px; color: #fff; font-size: 13px; font-weight: 700;
+      font-family: inherit; cursor: pointer; white-space: nowrap; transition: background .2s;
+    }
+    .set-save-btn:hover { background: var(--rose-dark); }
+    .save-ok { font-size: 12px; color: var(--green); margin-top: 5px; display: none; }
+    .save-ok.show { display: block; }
+
+    /* ── MODAL ── */
+    .modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(44,37,32,.48); z-index: 200;
+      align-items: flex-end; justify-content: center;
+    }
+    .modal-bg.show { display: flex; }
+    .modal-sheet {
+      background: #FFF9F4; border-radius: 18px 18px 0 0;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 -4px 24px rgba(100,70,40,.14);
+      width: 100%; max-width: 480px;
+      padding: 20px; animation: slideU .25s ease;
+    }
+    @keyframes slideU { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .modal-handle { width: 36px; height: 4px; border-radius: 2px; background: #D6C9BC; margin: 0 auto 16px; }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .form-group { margin-bottom: 13px; }
+    .file-label {
+      display: flex; align-items: center; gap: 8px;
+      background: #fff; border: 1.5px dashed var(--rose-border);
+      border-radius: var(--r-sm); padding: 10px 13px;
+      cursor: pointer; font-size: 13px; color: var(--text-sub);
+      transition: border-color .2s, color .2s;
+    }
+    .file-label:hover { border-color: var(--rose); color: var(--rose); }
+    .file-name { font-size: 11px; color: var(--rose-dark); margin-top: 4px; }
+    .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-cancel {
+      flex: 1; background: #fff; border: 1.5px solid #C9B4AA;
+      color: var(--text-sub); border-radius: var(--r-sm);
+      padding: 10px; font-size: 14px; font-family: inherit; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-cancel:hover { background: #F5EDE6; }
+    .btn-submit {
+      flex: 2; background: var(--rose); border: none;
+      color: #fff; border-radius: var(--r-sm); padding: 10px;
+      font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-submit:hover    { background: var(--rose-dark); }
+    .btn-submit:disabled { opacity: .6; cursor: default; }
+
+    /* ── UTILS ── */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; opacity: .28; }
+    .empty-state p { font-size: 14px; line-height: 1.65; }
+    .spinner {
+      width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite; display: inline-block;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay {
+      position: fixed; inset: 0; background: rgba(249,246,240,.85);
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+    }
+    .loading-overlay i { font-size: 32px; color: var(--rose); animation: pulse 1s ease infinite alternate; }
+    @keyframes pulse { from { opacity: .4; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+<!-- ── LOADING ── -->
+<div class="loading-overlay" id="loading-overlay">
+  <i class="ti ti-book"></i>
+</div>
+
+<!-- ── NUDGE TOAST (global) ── -->
+<div class="nudge-toast" id="nudge-toast">
+  <span style="font-size:22px">👋</span>
+  <div style="flex:1">
+    <div class="toast-title" id="toast-from">버디가 콕 찌릅니다!</div>
+    <div class="toast-sub">다시 책으로 돌아와요 📖</div>
+  </div>
+  <button class="toast-close" onclick="closeToast()">✕</button>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+
+  <!-- ══ LOGIN ══ -->
+  <div class="screen" id="scr-login">
+    <div class="auth-wrap">
+      <div class="auth-logo">
+        <span class="auth-logo-icon">📖</span>
+        <h1>Book Buddy</h1>
+        <p>함께 읽으면 더 오래 집중돼요</p>
+      </div>
+      <div class="auth-card">
+        <div>
+          <label class="field-label" for="l-email">이메일</label>
+          <input class="field-input" id="l-email" type="email" placeholder="your@email.com" />
+        </div>
+        <div>
+          <label class="field-label" for="l-pw">비밀번호</label>
+          <input class="field-input" id="l-pw" type="password" placeholder="••••••••"
+                 onkeydown="if(event.key==='Enter')doLogin()" />
+        </div>
+        <div class="err-msg" id="login-err"></div>
+        <button class="btn-primary" id="login-btn" onclick="doLogin()">로그인</button>
+        <button class="btn-outline" onclick="goSignup()">회원가입</button>
+      </div>
+      <div class="auth-switch">계정이 없으신가요? <span onclick="goSignup()">회원가입</span></div>
+    </div>
+  </div>
+
+  <!-- ══ SIGNUP ══ -->
+  <div class="screen" id="scr-signup">
+    <div class="auth-wrap">
+      <div class="auth-logo">
+        <span class="auth-logo-icon">📖</span>
+        <h1>회원가입</h1>
+        <p>독서 여정을 시작해봐요</p>
+      </div>
+      <div class="auth-card">
+        <div>
+          <label class="field-label" for="s-name">닉네임</label>
+          <input class="field-input" id="s-name" placeholder="예: 수빈" />
+        </div>
+        <div>
+          <label class="field-label" for="s-email">이메일</label>
+          <input class="field-input" id="s-email" type="email" placeholder="your@email.com" />
+        </div>
+        <div>
+          <label class="field-label" for="s-pw">비밀번호</label>
+          <input class="field-input" id="s-pw" type="password" placeholder="8자 이상"
+                 onkeydown="if(event.key==='Enter')doSignup()" />
+        </div>
+        <div class="err-msg" id="signup-err"></div>
+        <button class="btn-primary" id="signup-btn" onclick="doSignup()">가입하기</button>
+      </div>
+      <div class="auth-switch">이미 계정이 있으신가요? <span onclick="goLogin()">로그인</span></div>
+    </div>
+  </div>
+
+  <!-- ══ CONNECT PARTNER ══ -->
+  <div class="screen" id="scr-connect">
+    <div class="auth-wrap" style="gap:16px">
+      <div class="auth-logo">
+        <span style="display:block;margin-bottom:10px">
+          <span class="step-badge">
+            <i class="ti ti-users" style="font-size:13px"></i> 2단계 · 버디 연결
+          </span>
+        </span>
+        <h1>파트너 연결하기</h1>
+        <p>같이 읽을 친구에게 코드를 공유하세요</p>
+      </div>
+      <div class="auth-card" style="gap:16px">
+        <div>
+          <div class="field-label" style="margin-bottom:8px">내 버디 코드 (= 내 UUID)</div>
+          <div class="code-box">
+            <div class="code" id="my-buddy-code">불러오는 중...</div>
+            <div class="code-hint">이 코드를 친구에게 알려주세요</div>
+          </div>
+          <button class="btn-outline" style="margin-top:8px;font-size:13px;padding:8px" onclick="copyMyCode()">
+            <i class="ti ti-copy" style="vertical-align:-2px;margin-right:4px"></i>코드 복사
+          </button>
+        </div>
+        <div class="divider">또는 친구 코드 입력</div>
+        <div>
+          <label class="field-label" for="c-code">친구 버디 코드</label>
+          <input class="field-input" id="c-code" placeholder="친구의 UUID를 붙여넣으세요" />
+        </div>
+        <div class="err-msg" id="connect-err"></div>
+        <button class="btn-primary" id="connect-btn" onclick="doConnect()">연결하고 시작하기</button>
+        <button class="btn-outline" onclick="enterApp()">나중에 연결하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MAIN APP ══ -->
+  <div class="screen" id="scr-main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <span class="topbar-logo">📖 Book Buddy</span>
+      <button class="topbar-btn" id="topbar-btn" onclick="handleTopbar()">
+        <i class="ti ti-settings" id="topbar-icon"></i>
+      </button>
+    </div>
+
+    <!-- HOME TAB -->
+    <div class="content" id="tab-home">
+      <div>
+        <div class="sec-label">내 상태</div>
+        <div class="card">
+          <div class="status-pill">
+            <div class="dot dot-off" id="my-dot"></div>
+            <span class="status-text" id="my-status-text">지금은 휴식 중이에요</span>
+          </div>
+          <div id="reading-badge-wrap" style="display:none">
+            <div class="reading-badge">
+              <i class="ti ti-book" style="font-size:13px"></i>
+              <span id="reading-book-badge"></span>
+            </div>
+          </div>
+          <div class="book-input-wrap" id="book-input-wrap">
+            <label class="field-label" for="book-title-input">지금 읽을 책</label>
+            <input class="book-input" id="book-title-input" placeholder="책 제목을 입력하세요..." />
+          </div>
+          <button class="btn-reading" id="main-status-btn" onclick="toggleStatus()">독서 시작하기</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-label">버디 상태</div>
+        <div id="buddy-list">
+          <div class="empty-state" style="padding:24px">
+            <i class="ti ti-user-plus"></i>
+            <p>연결된 버디가 없어요.<br>파트너 코드로 친구를 연결해보세요.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEED TAB -->
+    <div class="content" id="tab-feed" style="display:none">
+      <div id="feed-list"></div>
+      <div id="feed-empty" class="empty-state">
+        <i class="ti ti-books"></i>
+        <p>아직 독서 로그가 없어요.<br>오늘의 첫 기록을 남겨볼까요?</p>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="content" id="tab-settings" style="display:none">
+      <div class="sec-label">프로필</div>
+      <div class="set-row" style="flex-wrap:wrap;gap:8px">
+        <span class="set-label">닉네임</span>
+        <div style="display:flex;flex-direction:column;flex:1;min-width:150px">
+          <div style="display:flex;gap:8px">
+            <input class="set-input" id="nickname-input" placeholder="새 닉네임" />
+            <button class="set-save-btn" onclick="saveNickname()">저장</button>
+          </div>
+          <div class="save-ok" id="nickname-ok">✓ 저장되었습니다</div>
+        </div>
+      </div>
+      <div class="set-row">
+        <div>
+          <div class="set-label">내 버디 코드</div>
+          <div style="font-size:12px;color:var(--lavender);font-weight:700;letter-spacing:1px;margin-top:4px;word-break:break-all" id="settings-code">--</div>
+        </div>
+        <button class="btn-outline" style="width:auto;padding:6px 13px;font-size:12px;font-weight:600;flex-shrink:0;margin-left:8px" onclick="copyMyCode()">복사</button>
+      </div>
+
+      <div class="sec-label" style="margin-top:6px">알림</div>
+      <div class="set-row">
+        <span class="set-label">콕 찌르기 알림</span>
+        <div class="toggle-wrap">
+          <span class="set-value" id="nudge-toggle-label">켜짐</span>
+          <div class="toggle on" id="nudge-toggle" onclick="toggleNudge()" role="switch" aria-checked="true" tabindex="0"></div>
+        </div>
+      </div>
+
+      <div class="sec-label" style="margin-top:6px">버디 관리</div>
+      <div class="set-row" style="flex-wrap:wrap;gap:8px">
+        <span class="set-label" style="flex-shrink:0">버디 추가</span>
+        <div style="display:flex;flex-direction:column;flex:1;min-width:150px">
+          <div style="display:flex;gap:8px">
+            <input class="set-input" id="add-buddy-input" placeholder="친구 UUID 입력" />
+            <button class="set-save-btn" onclick="addBuddy()">연결</button>
+          </div>
+          <div class="save-ok" id="buddy-ok">✓ 버디가 추가되었습니다</div>
+          <div class="err-msg" id="buddy-err" style="text-align:left;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="sec-label" style="margin-top:6px">계정</div>
+      <div class="set-row">
+        <span class="set-label">이메일</span>
+        <span class="set-value" id="settings-email" style="font-size:12px">--</span>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn-outline" onclick="doLogout()">
+          <i class="ti ti-logout" style="vertical-align:-2px;margin-right:4px"></i>로그아웃
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="nav-bar">
+      <button class="nav-btn active" id="nav-home" onclick="switchTab('home')">
+        <i class="ti ti-home"></i>홈
+      </button>
+      <button class="nav-btn" id="nav-feed" onclick="switchTab('feed')">
+        <i class="ti ti-camera"></i>피드
+      </button>
+      <button class="nav-btn" id="nav-settings" onclick="switchTab('settings')">
+        <i class="ti ti-settings"></i>설정
+      </button>
+    </nav>
+  </div>
+
+</div><!-- /#app -->
+
+<!-- WRITE MODAL -->
+<div class="modal-bg" id="write-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">독서 로그 남기기</div>
+    <div class="form-group">
+      <label class="field-label" for="f-book">도서명 *</label>
+      <input class="field-input" id="f-book" placeholder="읽은 책 제목" />
+    </div>
+    <div class="form-group">
+      <label class="field-label" for="f-pages">읽은 페이지 *</label>
+      <input class="field-input" id="f-pages" placeholder="예: 120-145" />
+    </div>
+    <div class="form-group">
+      <label class="field-label" for="f-content">한 줄 평 *</label>
+      <input class="field-input" id="f-content" placeholder="오늘 독서 소감을 한 줄로..." />
+    </div>
+    <div class="form-group">
+      <label class="field-label">책 사진 (선택)</label>
+      <label class="file-label">
+        <i class="ti ti-photo"></i> 사진 첨부하기
+        <input type="file" accept="image/*" style="display:none" id="f-file" onchange="handleFile(this)" />
+      </label>
+      <div class="file-name" id="f-fname"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('write-modal')">취소</button>
+      <button class="btn-submit" id="submit-btn" onclick="submitFeed()">등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">게시물 수정</div>
+    <div class="form-group">
+      <label class="field-label" for="e-book">도서명</label>
+      <input class="field-input" id="e-book" />
+    </div>
+    <div class="form-group">
+      <label class="field-label" for="e-pages">읽은 페이지</label>
+      <input class="field-input" id="e-pages" />
+    </div>
+    <div class="form-group">
+      <label class="field-label" for="e-content">한 줄 평</label>
+      <input class="field-input" id="e-content" />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('edit-modal')">취소</button>
+      <button class="btn-submit" onclick="saveEdit()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script>
+/* ═══════════════════════════════════════════════════════
+   ① SUPABASE 설정 — 아래 두 줄에만 키를 입력하세요
+   (window.supabase = SDK 전역, db = 앱 클라이언트)
+═══════════════════════════════════════════════════════ */
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+const db = window.supabase.createClient("https://tdpngrqkxugvgxtogrez.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcG5ncnFreHVndmd4dG9ncmV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNTY1NzYsImV4cCI6MjA5NzYzMjU3Nn0.DSG4DxEE66GUKvt_URak2GKLdT8hnvFiol5s03WMbB0");
+
+/* ═══════════════════════════════════════════════════════
+   ② 글로벌 상태
+═══════════════════════════════════════════════════════ */
+const S = {
+  user:           null,   // { id, nickname, email }
+  status:         'Resting',
+  targetBook:     '',
+  nudgeEnabled:   true,
+  pendingImage:   null,
+  editingId:      null,
+  nudgeCooldowns: {},
+  buddyIds:       [],
+  channels:       [],
+};
+
+/* ═══════════════════════════════════════════════════════
+   ③ localStorage 세션
+═══════════════════════════════════════════════════════ */
+const SESSION_KEY = 'bb_session_v1';
+function saveSession() {
+  if (!S.user) return;
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    id: S.user.id, nickname: S.user.nickname, email: S.user.email,
+  }));
+}
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+}
+function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+/* ═══════════════════════════════════════════════════════
+   ④ 유틸
+═══════════════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.classList.add('show');
+}
+function clearErr(id) { document.getElementById(id).classList.remove('show'); }
+function setLoading(v) {
+  document.getElementById('loading-overlay').style.display = v ? 'flex' : 'none';
+}
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function timeAgo(d) {
+  const m = Math.round((Date.now() - new Date(d)) / 60000);
+  if (m < 1)  return '방금 전';
+  if (m < 60) return `${m}분 전`;
+  return `${Math.round(m / 60)}시간 전`;
+}
+function showToast(name) {
+  document.getElementById('toast-from').textContent = `${name || '버디'}님이 콕 찌릅니다!`;
+  const t = document.getElementById('nudge-toast');
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 3500);
+}
+function closeToast() { document.getElementById('nudge-toast').classList.remove('show'); }
+function copyMyCode() {
+  const code = S.user?.id ?? '';
+  if (!code) return;
+  navigator.clipboard.writeText(code).catch(() => {});
+  alert(`버디 코드가 복사되었습니다!\n\n${code}`);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑤ 초기화 — localStorage 세션 우선 복원
+═══════════════════════════════════════════════════════ */
+async function init() {
+  setLoading(true);
+  try {
+    const saved = loadSession();
+    if (saved?.id) {
+      const { data, error } = await db
+        .from('user_status').select('*').eq('id', saved.id).maybeSingle();
+      if (!error && data) {
+        applyProfile(data);
+        subscribeRealtime();
+        enterApp();
+        setLoading(false);
+        return;
+      }
+      clearSession();
+    }
+  } catch (e) { console.warn('Session restore:', e); clearSession(); }
+  showScreen('scr-login');
+  setLoading(false);
+}
+
+function applyProfile(row) {
+  S.user       = { id: row.id, nickname: row.nickname ?? '', email: row.email ?? '' };
+  S.status     = row.status      ?? 'Resting';
+  S.targetBook = row.target_book ?? '';
+  S.buddyIds   = row.buddy_ids   ?? [];
+}
+
+/* 경량 FNV-1a 해시 (프로토타입용) */
+function simpleHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑥ 인증 (Supabase Auth 없이 user_status 테이블 직접 사용)
+═══════════════════════════════════════════════════════ */
+function goLogin()  { showScreen('scr-login');  clearErr('login-err'); }
+function goSignup() { showScreen('scr-signup'); clearErr('signup-err'); }
+
+async function doLogin() {
+  clearErr('login-err');
+  const emailRaw = document.getElementById('l-email').value.trim();
+  const pw       = document.getElementById('l-pw').value;
+  if (!emailRaw || !pw) { showErr('login-err', '이메일과 비밀번호를 입력해주세요.'); return; }
+
+  const email = emailRaw.toLowerCase();
+  const btn   = document.getElementById('login-btn');
+  btn.innerHTML = '<span class="spinner"></span>확인 중...';
+  btn.disabled  = true;
+
+  try {
+    const { data: row, error: fetchErr } = await db
+      .from('user_status').select('*').eq('email', email).maybeSingle();
+    if (fetchErr) throw fetchErr;
+
+    if (row) {
+      /* 기존 유저 — 비밀번호 확인 */
+      if (row.pw_hash && row.pw_hash !== simpleHash(pw)) {
+        showErr('login-err', '비밀번호가 올바르지 않습니다.');
+        btn.innerHTML = '로그인'; btn.disabled = false; return;
+      }
+      applyProfile(row);
+    } else {
+      /* 신규 유저 — 자동 생성 */
+      const nickname = email.split('@')[0];
+      const newRow   = {
+        id: crypto.randomUUID(), nickname, email,
+        pw_hash: simpleHash(pw), status: 'Resting',
+        target_book: null, buddy_ids: [],
+      };
+      const { error: insErr } = await db.from('user_status').insert(newRow);
+      if (insErr) throw insErr;
+      applyProfile(newRow);
+    }
+
+    saveSession();
+    document.getElementById('my-buddy-code').textContent = S.user.id;
+    subscribeRealtime();
+    showScreen('scr-connect');
+  } catch (e) {
+    console.error('doLogin:', e);
+    showErr('login-err', `오류: ${e.message ?? '잠시 후 다시 시도해주세요.'}`);
+  }
+  btn.innerHTML = '로그인'; btn.disabled = false;
+}
+
+async function doSignup() {
+  clearErr('signup-err');
+  const nickname = document.getElementById('s-name').value.trim();
+  const emailRaw = document.getElementById('s-email').value.trim();
+  const pw       = document.getElementById('s-pw').value;
+  if (!nickname || !emailRaw || !pw) { showErr('signup-err', '모든 항목을 입력해주세요.'); return; }
+  if (pw.length < 6) { showErr('signup-err', '비밀번호는 6자 이상이어야 합니다.'); return; }
+
+  const email = emailRaw.toLowerCase();
+  const btn   = document.getElementById('signup-btn');
+  btn.innerHTML = '<span class="spinner"></span>가입 중...';
+  btn.disabled  = true;
+
+  try {
+    const { data: existing } = await db
+      .from('user_status').select('id').eq('email', email).maybeSingle();
+    if (existing) {
+      showErr('signup-err', '이미 사용 중인 이메일입니다. 로그인 해주세요.');
+      btn.innerHTML = '가입하기'; btn.disabled = false; return;
+    }
+    const newRow = {
+      id: crypto.randomUUID(), nickname, email,
+      pw_hash: simpleHash(pw), status: 'Resting',
+      target_book: null, buddy_ids: [],
+    };
+    const { error: insErr } = await db.from('user_status').insert(newRow);
+    if (insErr) throw insErr;
+    applyProfile(newRow);
+    saveSession();
+    document.getElementById('my-buddy-code').textContent = S.user.id;
+    subscribeRealtime();
+    showScreen('scr-connect');
+  } catch (e) {
+    console.error('doSignup:', e);
+    showErr('signup-err', `오류: ${e.message ?? '잠시 후 다시 시도해주세요.'}`);
+  }
+  btn.innerHTML = '가입하기'; btn.disabled = false;
+}
+
+function doLogout() {
+  cleanupChannels();
+  clearSession();
+  S.user = null; S.buddyIds = []; S.status = 'Resting'; S.targetBook = '';
+  ['l-email', 'l-pw'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  showScreen('scr-login');
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑦ 버디 연결
+═══════════════════════════════════════════════════════ */
+async function doConnect() {
+  clearErr('connect-err');
+  const partnerId = document.getElementById('c-code').value.trim();
+  if (!partnerId) { enterApp(); return; }
+  if (partnerId === S.user.id) {
+    showErr('connect-err', '자기 자신과는 연결할 수 없어요.'); return;
+  }
+  const btn = document.getElementById('connect-btn');
+  btn.innerHTML = '<span class="spinner"></span>연결 중...';
+  btn.disabled  = true;
+  const ok = await linkBuddy(partnerId);
+  btn.innerHTML = '연결하고 시작하기'; btn.disabled = false;
+  if (!ok) { showErr('connect-err', '해당 코드의 유저를 찾을 수 없어요.'); return; }
+  subscribeRealtime(); enterApp();
+}
+
+async function addBuddy() {
+  clearErr('buddy-err');
+  const partnerId = document.getElementById('add-buddy-input').value.trim();
+  if (!partnerId) return;
+  if (partnerId === S.user.id) {
+    showErr('buddy-err', '자기 자신과는 연결할 수 없어요.'); return;
+  }
+  const ok = await linkBuddy(partnerId);
+  if (!ok) { showErr('buddy-err', '해당 코드의 유저를 찾을 수 없어요.'); return; }
+  document.getElementById('add-buddy-input').value = '';
+  const el = document.getElementById('buddy-ok');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+  subscribeRealtime();
+  await loadBuddies();
+}
+
+async function linkBuddy(partnerId) {
+  const { data: partner } = await db
+    .from('user_status').select('id,buddy_ids').eq('id', partnerId).maybeSingle();
+  if (!partner) return false;
+
+  const myNew = [...new Set([...S.buddyIds, partnerId])];
+  const { error } = await db.from('user_status')
+    .update({ buddy_ids: myNew }).eq('id', S.user.id);
+  if (error) { console.error('linkBuddy:', error); return false; }
+  S.buddyIds = myNew;
+
+  const partnerNew = [...new Set([...(partner.buddy_ids ?? []), S.user.id])];
+  await db.from('user_status')
+    .update({ buddy_ids: partnerNew }).eq('id', partnerId);
+  return true;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑧ 앱 진입
+═══════════════════════════════════════════════════════ */
+function enterApp() {
+  showScreen('scr-main');
+  document.getElementById('book-input-wrap').classList.add('visible');
+  document.getElementById('settings-email').textContent = S.user.email    ?? '';
+  document.getElementById('settings-code').textContent  = S.user.id       ?? '';
+  updateStatusUI();
+  loadBuddies();
+  renderFeed();
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑨ 독서 상태 토글
+═══════════════════════════════════════════════════════ */
+async function toggleStatus() {
+  if (S.status === 'Resting') {
+    const book = document.getElementById('book-title-input').value.trim();
+    if (!book) {
+      const inp = document.getElementById('book-title-input');
+      inp.focus(); inp.style.borderColor = '#C94040';
+      setTimeout(() => { inp.style.borderColor = ''; }, 1500);
+      return;
+    }
+    S.status = 'Reading'; S.targetBook = book;
+  } else {
+    S.status = 'Resting'; S.targetBook = '';
+  }
+  updateStatusUI();
+  await db.from('user_status')
+    .update({ status: S.status, target_book: S.targetBook || null })
+    .eq('id', S.user.id);
+}
+
+function updateStatusUI() {
+  const on = S.status === 'Reading';
+  document.getElementById('my-dot').className = `dot ${on ? 'dot-on' : 'dot-off'}`;
+  document.getElementById('my-status-text').textContent =
+    on ? `${S.user.nickname}님은 지금 독서 중이에요 🎯` : '지금은 휴식 중이에요';
+  document.getElementById('reading-badge-wrap').style.display = on ? 'block' : 'none';
+  document.getElementById('reading-book-badge').textContent   = S.targetBook;
+
+  const iw = document.getElementById('book-input-wrap');
+  if (on) { iw.classList.remove('visible'); }
+  else    { iw.classList.add('visible'); document.getElementById('book-title-input').value = ''; }
+
+  const btn = document.getElementById('main-status-btn');
+  btn.textContent = on ? '독서 종료하기' : '독서 시작하기';
+  btn.className   = on ? 'btn-stop'      : 'btn-reading';
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑩ 버디 목록
+═══════════════════════════════════════════════════════ */
+async function loadBuddies() {
+  if (!S.buddyIds.length) { renderBuddies([]); return; }
+  const { data } = await db.from('user_status')
+    .select('id,nickname,status,target_book')
+    .in('id', S.buddyIds);
+  renderBuddies(data ?? []);
+}
+
+function renderBuddies(list) {
+  const el = document.getElementById('buddy-list');
+  if (!list.length) {
+    el.innerHTML = `
+      <div class="empty-state" style="padding:24px">
+        <i class="ti ti-user-plus"></i>
+        <p>연결된 버디가 없어요.<br>설정에서 친구 코드를 입력해 연결해보세요.</p>
+      </div>`;
+    return;
+  }
+  el.innerHTML = list.map(b => {
+    const on       = b.status === 'Reading';
+    const nickEsc  = (b.nickname ?? '버디').replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+    return `
+      <div class="buddy-row">
+        <div class="buddy-ava">${(b.nickname ?? '?')[0]}</div>
+        <div class="buddy-info">
+          <div class="buddy-name">${b.nickname ?? '알 수 없음'}</div>
+          <div class="buddy-status-line">
+            <div class="dot ${on ? 'dot-green' : 'dot-off'}"></div>
+            <span>${on ? '독서 중' : '휴식 중'}</span>
+          </div>
+          ${b.target_book ? `<div class="buddy-book">📖 ${b.target_book}</div>` : ''}
+        </div>
+        <button class="nudge-btn" id="nudge-${b.id}"
+          onclick="sendNudge(this.dataset.bid, this.dataset.bname)"
+          data-bid="${b.id}"
+          data-bname="${(b.nickname ?? '버디').replace(/"/g, '&quot;')}">
+          👋 콕 찌르기
+        </button>
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑪ 넛지 전송
+═══════════════════════════════════════════════════════ */
+async function sendNudge(buddyId, buddyName) {
+  if (!S.nudgeEnabled) return;
+  const now = Date.now();
+  if (S.nudgeCooldowns[buddyId] && now - S.nudgeCooldowns[buddyId] < 2000) return;
+  S.nudgeCooldowns[buddyId] = now;
+
+  const btn = document.getElementById(`nudge-${buddyId}`);
+  if (btn) { btn.classList.add('sent'); btn.textContent = '전송됨 ✓'; }
+  setTimeout(() => {
+    if (btn) { btn.classList.remove('sent'); btn.textContent = '👋 콕 찌르기'; }
+  }, 2000);
+
+  await db.from('nudges').insert({
+    from_id:   S.user.id,
+    from_name: S.user.nickname,
+    to_id:     buddyId,
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑫ Realtime 구독
+═══════════════════════════════════════════════════════ */
+function cleanupChannels() {
+  S.channels.forEach(ch => { try { db.removeChannel(ch); } catch (_) {} });
+  S.channels = [];
+}
+
+function subscribeRealtime() {
+  cleanupChannels();
+
+  /* 버디 상태 변경 구독 */
+  if (S.buddyIds.length) {
+    const ch1 = db.channel(`buddy-status-${S.user.id}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'user_status' },
+        payload => { if (S.buddyIds.includes(payload.new.id)) loadBuddies(); }
+      ).subscribe(status => {
+        if (status === 'CHANNEL_ERROR') console.warn('buddy-status channel error');
+      });
+    S.channels.push(ch1);
+  }
+
+  /* 넛지 수신 구독 */
+  const ch2 = db.channel(`nudge-for-${S.user.id}`)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'nudges',
+        filter: `to_id=eq.${S.user.id}` },
+      payload => { if (S.nudgeEnabled) showToast(payload.new.from_name); }
+    ).subscribe(status => {
+      if (status === 'CHANNEL_ERROR') console.warn('nudge channel error');
+    });
+  S.channels.push(ch2);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑬ 피드 CRUD
+═══════════════════════════════════════════════════════ */
+async function renderFeed() {
+  if (!S.user) return;
+  const { data, error } = await db
+    .from('book_feeds').select('*').order('created_at', { ascending: false });
+  if (error) { console.error('renderFeed:', error); return; }
+
+  const list  = document.getElementById('feed-list');
+  const empty = document.getElementById('feed-empty');
+  if (!data?.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  list.innerHTML = data.map(f => {
+    const mine = f.user_id === S.user.id;
+    return `
+      <div class="feed-card">
+        <div class="feed-hdr">
+          <div class="feed-author-row">
+            <div class="feed-ava">${(f.author ?? '?')[0]}</div>
+            <div>
+              <div class="feed-name">${f.author ?? '알 수 없음'}</div>
+              <div class="feed-time">${timeAgo(f.created_at)}</div>
+            </div>
+          </div>
+          ${mine ? `
+          <div class="feed-acts">
+            <button class="feed-act-btn"
+              onclick="openEditModal(this.dataset.fid)" data-fid="${f.id}">
+              <i class="ti ti-pencil"></i> 수정
+            </button>
+            <button class="feed-act-btn del"
+              onclick="deleteFeed(this.dataset.fid)" data-fid="${f.id}">
+              <i class="ti ti-trash"></i> 삭제
+            </button>
+          </div>` : ''}
+        </div>
+        <div class="feed-body">
+          <div class="feed-title">
+            <i class="ti ti-book" style="font-size:13px"></i>
+            ${f.book_title}
+            <span class="feed-pages">p.${f.pages}</span>
+          </div>
+          ${f.image_src
+            ? `<div class="feed-img-wrap"><img src="${f.image_src}" alt="책 사진" loading="lazy"></div>`
+            : ''}
+          <div class="feed-content">"${f.content}"</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function handleFile(inp) {
+  const file = inp.files[0]; if (!file) return;
+  document.getElementById('f-fname').textContent = `✓ ${file.name}`;
+  const reader = new FileReader();
+  reader.onload = e => { S.pendingImage = e.target.result; };
+  reader.readAsDataURL(file);
+}
+
+async function submitFeed() {
+  const book    = document.getElementById('f-book').value.trim();
+  const pages   = document.getElementById('f-pages').value.trim();
+  const content = document.getElementById('f-content').value.trim();
+  if (!book || !pages || !content) { document.getElementById('f-book').focus(); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.innerHTML = '<span class="spinner"></span>저장 중...';
+  btn.disabled  = true;
+
+  const { error } = await db.from('book_feeds').insert({
+    user_id:    S.user.id,
+    author:     S.user.nickname,
+    book_title: book,
+    pages,
+    content,
+    image_src:  S.pendingImage ?? null,
+  });
+  btn.innerHTML = '등록하기'; btn.disabled = false;
+  if (error) { alert(`저장 실패: ${error.message}`); return; }
+
+  S.pendingImage = null;
+  ['f-book', 'f-pages', 'f-content'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-fname').textContent = '';
+  closeModal('write-modal');
+  await renderFeed();
+}
+
+async function deleteFeed(id) {
+  if (!confirm('이 게시물을 삭제할까요?')) return;
+  await db.from('book_feeds').delete().eq('id', id).eq('user_id', S.user.id);
+  await renderFeed();
+}
+
+async function openEditModal(id) {
+  const { data: f } = await db.from('book_feeds').select('*').eq('id', id).single();
+  if (!f) return;
+  S.editingId = id;
+  document.getElementById('e-book').value    = f.book_title;
+  document.getElementById('e-pages').value   = f.pages;
+  document.getElementById('e-content').value = f.content;
+  openModal('edit-modal');
+}
+
+async function saveEdit() {
+  if (!S.editingId) return;
+  await db.from('book_feeds').update({
+    book_title: document.getElementById('e-book').value.trim(),
+    pages:      document.getElementById('e-pages').value.trim(),
+    content:    document.getElementById('e-content').value.trim(),
+  }).eq('id', S.editingId).eq('user_id', S.user.id);
+  closeModal('edit-modal');
+  S.editingId = null;
+  await renderFeed();
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑭ 탭 & 설정
+═══════════════════════════════════════════════════════ */
+function switchTab(tab) {
+  ['home', 'feed', 'settings'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === tab ? 'flex' : 'none';
+    document.getElementById(`nav-${t}`).classList.toggle('active', t === tab);
+  });
+  document.getElementById('topbar-icon').className =
+    tab === 'feed' ? 'ti ti-plus' : 'ti ti-settings';
+  if (tab === 'feed')     renderFeed();
+  if (tab === 'settings') {
+    document.getElementById('nickname-input').placeholder = S.user.nickname ?? '';
+    document.getElementById('settings-code').textContent  = S.user.id       ?? '--';
+    document.getElementById('settings-email').textContent = S.user.email    ?? '--';
+  }
+}
+
+function handleTopbar() {
+  const active = document.querySelector('.nav-btn.active');
+  if (active?.id === 'nav-feed') openModal('write-modal');
+}
+
+async function saveNickname() {
+  const v = document.getElementById('nickname-input').value.trim();
+  if (!v) return;
+  S.user.nickname = v;
+  await db.from('user_status').update({ nickname: v }).eq('id', S.user.id);
+  saveSession();
+  const ok = document.getElementById('nickname-ok');
+  ok.classList.add('show');
+  setTimeout(() => ok.classList.remove('show'), 2500);
+  updateStatusUI();
+}
+
+function toggleNudge() {
+  S.nudgeEnabled = !S.nudgeEnabled;
+  document.getElementById('nudge-toggle').classList.toggle('on', S.nudgeEnabled);
+  document.getElementById('nudge-toggle').setAttribute('aria-checked', String(S.nudgeEnabled));
+  document.getElementById('nudge-toggle-label').textContent = S.nudgeEnabled ? '켜짐' : '꺼짐';
+}
+
+/* ═══════════════════════════════════════════════════════
+   ⑮ 시작
+═══════════════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>
