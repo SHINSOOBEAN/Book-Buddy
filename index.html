@@ -1238,10 +1238,11 @@ async function submitFeed() {
  try {
     const { error } = await db.from('book_feeds').insert({
         user_id:     S.user.id,
-        nickname:    S.user.nickname, // ⭕ author -> nickname으로 수정
+        nickname:    S.user.nickname, 
         book_title:  book,
-        page_info:   pages,           // ⭕ pages -> page_info로 수정
-        content:     content          // ⭕ 테이블에 있는 칸만 깔끔하게 전달!
+        page_info:   pages,           
+        content:     content
+        image_src:   S.pendingImage ?? null
     });
     if (error) throw new Error(error.message);
 
