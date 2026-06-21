@@ -1235,14 +1235,13 @@ async function submitFeed() {
   btn.innerHTML = '<span class="spinner"></span>저장 중...';
   btn.disabled  = true;
 
-  try {
+ try {
     const { error } = await db.from('book_feeds').insert({
-      user_id:    S.user.id,
-      author:     S.user.nickname,
-      book_title: book,
-      pages:      pages,
-      content:    content,
-      image_src:  S.pendingImage ?? null,
+        user_id:     S.user.id,
+        nickname:    S.user.nickname, // ⭕ author -> nickname으로 수정
+        book_title:  book,
+        page_info:   pages,           // ⭕ pages -> page_info로 수정
+        content:     content          // ⭕ 테이블에 있는 칸만 깔끔하게 전달!
     });
     if (error) throw new Error(error.message);
 
