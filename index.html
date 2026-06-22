@@ -1351,7 +1351,6 @@ async function submitFeed() {
   const pages   = document.getElementById('f-pages').value.trim();
   const content = document.getElementById('f-content').value.trim();
   
-  // 필수 입력값 체크
   if (!book || !pages || !content) { 
     const fBook = document.getElementById('f-book');
     if (fBook) fBook.focus(); 
@@ -1363,49 +1362,47 @@ async function submitFeed() {
   btn.disabled  = true;
 
   try {
-    // 💡 [안전장치 1] 내 이메일 앞자리를 닉네임으로 추출 (S.user.nickname 공백 방지)
-    const myNickname = S.user?.email ? S.user.email.split('@')[0] : '사용자';
+    // 💡 [핵심 수정] 내 user_status 테이블을 조회해서 '내가 직접 설정한 진짜 별명'을 가져옵니다!
+    const { data: profile } = await db
+      .from('user_status')
+      .select('nickname')
+      .eq('id', S.user.id)
+      .maybeSingle();
 
-    // 💡 [안전장치 2] Supabase에 글 저장하기
+    // 만약 설정한 별명이 없다면 그때만 이메일 앞자리를 쓰고, 있으면 진짜 별명을 사용합니다.
+    const myRealNickname = profile?.nickname || (S.user?.email ? S.user.email.split('@')[0] : '사용자');
+
+    // 💡 Supabase에 글 저장할 때 진짜 별명을 모든 이름 컬럼에 다 넣어줍니다.
     const { error } = await db.from('book_feeds').insert({
         user_id:     S.user.id,
-        
-        // 이름 관련 가능한 컬럼명 다 찔러넣기
-        nickname:    myNickname,       
-        user_name:   myNickname,       
-        
+        author:      myRealNickname,   // renderFeed가 읽는 컬럼
+        nickname:    myRealNickname,   
+        user_name:   myRealNickname,   
         book_title:  book,
-        
-        // 페이지 관련 가능한 컬럼명 다 찔러넣기
         page_info:   pages,            
         pages:       pages,            
-        
         content:     content,
-        
-        // 이미지 주소 (S.pendingImage가 있으면 넣고, 없으면 null)
         image_src:   S.pendingImage || null
     });
     
     if (error) throw new Error(error.message);
 
-    // 🎉 저장 성공 시 입력창 및 이미지 임시 메모리 초기화
+    // 성공 시 초기화 및 모달 닫기
     S.pendingImage = null;
     ['f-book', 'f-pages', 'f-content'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
-    
     const fname = document.getElementById('f-fname');
     if (fname) fname.textContent = '';
     
-    // 모달 닫고 피드 새로고침
     closeModal('write-modal');
     if (typeof renderFeed === 'function') {
       await renderFeed();
     }
     
   } catch (e) {
-    console.error("피드 등록 실패 디버그 로그:", e);
+    console.error("피드 등록 실패:", e);
     alert(`저장 실패: ${e.message}`);
   } finally {
     btn.innerHTML = '등록하기'; 
