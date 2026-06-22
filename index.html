@@ -1003,22 +1003,48 @@ async function addBuddy() {
   await loadBuddies();
 }
 
-async function linkBuddy(partnerId) {
-  const { data: partner, error: fetchErr } = await db
-    .from('user_status').select('id, buddy_ids').eq('id', partnerId).maybeSingle();
-  if (fetchErr || !partner) return false;
+async function loadBuddies() {
+  try {
+    if (!S.user?.id) return;
 
-  /* 내 buddy_ids 갱신 */
-  const myNew = [...new Set([...S.buddyIds, partnerId])];
-  const { error: upErr } = await db
-    .from('user_status').update({ buddy_ids: myNew }).eq('id', S.user.id);
-  if (upErr) { console.error('linkBuddy self:', upErr); return false; }
-  S.buddyIds = myNew;
+    // 1. 내 계정의 'buddy_ids' (배열)를 가져옵니다.
+    const { data: myStatus, error: myError } = await db
+      .from('user_status')
+      .select('buddy_ids')
+      .eq('id', S.user.id)
+      .single();
 
-  /* 상대방 buddy_ids 갱신 (상호 연결) */
-  const partnerNew = [...new Set([...(partner.buddy_ids ?? []), S.user.id])];
-  await db.from('user_status').update({ buddy_ids: partnerNew }).eq('id', partnerId);
-  return true;
+    if (myError) throw myError;
+
+    // 2. 연결된 버디 ID 리스트가 있다면
+    if (myStatus && myStatus.buddy_ids && myStatus.buddy_ids.length > 0) {
+      // 전역 메모리(S)에도 동기화 (가장 첫 번째 버디를 파트너로 지정)
+      S.buddyIds = myStatus.buddy_ids;
+      S.partnerId = myStatus.buddy_ids[0]; 
+      
+      // 실시간 통로 연결
+      if (typeof subscribeRealtime === 'function') subscribeRealtime();
+
+      // 3. 내 버디 리스트에 포함된 모든 친구들의 상세 정보(닉네임, 상태 등)를 통째로 가져옵니다!
+      const { data: buddyList, error: buddyError } = await db
+        .from('user_status')
+        .select('*')
+        .in('id', S.buddyIds);
+
+      if (!buddyError && buddyList) {
+        // 가져온 친구 목록을 화면에 예쁘게 그려줍니다!
+        renderBuddies(buddyList);
+        return;
+      }
+    }
+
+    // 버디가 없다면 빈 화면 처리
+    renderBuddies([]);
+
+  } catch (err) {
+    console.error("버디 불러오기 실패:", err.message);
+    renderBuddies([]);
+  }
 }
 
 /* ═══════════════════════════════════════════════
