@@ -985,6 +985,40 @@ async function doConnect() {
   enterApp();
 }
 
+async function linkBuddy(partnerId) {
+  try {
+    const { data: partner, error: fetchErr } = await db
+      .from('user_status')
+      .select('id, buddy_ids')
+      .eq('id', partnerId)
+      .maybeSingle();
+
+    if (fetchErr || !partner) return false;
+
+    /* 내 buddy_ids 갱신 */
+    const myNew = [...new Set([...(S.buddyIds ?? []), partnerId])];
+    const { error: upErr } = await db
+      .from('user_status')
+      .update({ buddy_ids: myNew })
+      .eq('id', S.user.id);
+
+    if (upErr) { console.error('linkBuddy self:', upErr); return false; }
+    S.buddyIds = myNew;
+
+    /* 상대방 buddy_ids 갱신 (상호 연결) */
+    const partnerNew = [...new Set([...(partner.buddy_ids ?? []), S.user.id])];
+    await db
+      .from('user_status')
+      .update({ buddy_ids: partnerNew })
+      .eq('id', partnerId);
+
+    return true;
+  } catch (e) {
+    console.error("linkBuddy 시스템 에러:", e);
+    return false;
+  }
+}
+
 async function addBuddy() {
   clearErr('buddy-err');
   const partnerId = document.getElementById('add-buddy-input').value.trim();
