@@ -987,34 +987,51 @@ async function doConnect() {
 
 async function linkBuddy(partnerId) {
   try {
+    // 1. 상대방 유저가 존재하는지 체크
     const { data: partner, error: fetchErr } = await db
       .from('user_status')
-      .select('id, buddy_ids')
+      .select('*')
       .eq('id', partnerId)
       .maybeSingle();
 
-    if (fetchErr || !partner) return false;
+    if (fetchErr || !partner) {
+      console.error("상대방 유저를 찾을 수 없음:", fetchErr);
+      return false;
+    }
 
-    /* 내 buddy_ids 갱신 */
-    const myNew = [...new Set([...(S.buddyIds ?? []), partnerId])];
-    const { error: upErr } = await db
+    /* 2. 내 계정에 상대방 저장 (배열과 단수형 둘 다 박제!) */
+    const myCurrentIds = S.buddyIds || [];
+    const myNewIds = [...new Set([...myCurrentIds, partnerId])];
+    
+    const { error: myErr } = await db
       .from('user_status')
-      .update({ buddy_ids: myNew })
+      .update({ 
+        buddy_ids: myNewIds,
+        partner_id: partnerId // 방어벽용으로 단수형도 같이 저장!
+      })
       .eq('id', S.user.id);
 
-    if (upErr) { console.error('linkBuddy self:', upErr); return false; }
-    S.buddyIds = myNew;
+    if (myErr) throw myErr;
+    S.buddyIds = myNewIds;
+    S.partnerId = partnerId;
 
-    /* 상대방 buddy_ids 갱신 (상호 연결) */
-    const partnerNew = [...new Set([...(partner.buddy_ids ?? []), S.user.id])];
-    await db
+    /* 3. 상대방 계정에 나를 저장 (배rich 상호 연결) */
+    const partnerCurrentIds = partner.buddy_ids || [];
+    const partnerNewIds = [...new Set([...partnerCurrentIds, S.user.id])];
+    
+    const { error: partnerErr } = await db
       .from('user_status')
-      .update({ buddy_ids: partnerNew })
+      .update({ 
+        buddy_ids: partnerNewIds,
+        partner_id: S.user.id 
+      })
       .eq('id', partnerId);
 
+    if (partnerErr) throw partnerErr;
     return true;
+
   } catch (e) {
-    console.error("linkBuddy 시스템 에러:", e);
+    console.error("linkBuddy 최종 치명적 에러:", e);
     return false;
   }
 }
