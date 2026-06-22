@@ -973,17 +973,16 @@ async function doConnect() {
   const btn = document.getElementById('connect-btn');
   btn.innerHTML = '<span class="spinner"></span>연결 중...';
   btn.disabled  = true;
+  
+  // ⭕ 여기서 linkBuddy가 양쪽 계정의 buddy_ids를 알아서 마주 보게 잘 갱신해 줍니다!
   const ok = await linkBuddy(partnerId);
+  
   btn.innerHTML = '연결하고 시작하기'; btn.disabled = false;
   if (!ok) { showErr('connect-err', '해당 코드의 유저를 찾을 수 없어요.'); return; }
 
-  // ⭐️ [여기서부터 추가 시작] Supabase 데이터베이스에 파트너 ID 영구 저장!
-  try {
-    await db.from('user_status').update({ partner_id: partnerId }).eq('id', S.user.id);
-  } catch (e) {
-    console.error("데이터베이스 저장 오류:", e);
-  }
-  subscribeRealtime(); enterApp();
+  // 💡 기존의 파트너 업데이트 에러 유발 구문을 지우고 바로 진입합니다.
+  subscribeRealtime(); 
+  enterApp();
 }
 
 async function addBuddy() {
@@ -1018,27 +1017,25 @@ async function loadBuddies() {
 
     // 2. 연결된 버디 ID 리스트가 있다면
     if (myStatus && myStatus.buddy_ids && myStatus.buddy_ids.length > 0) {
-      // 전역 메모리(S)에도 동기화 (가장 첫 번째 버디를 파트너로 지정)
+      // 전역 메모리(S)에도 동기화
       S.buddyIds = myStatus.buddy_ids;
       S.partnerId = myStatus.buddy_ids[0]; 
       
       // 실시간 통로 연결
       if (typeof subscribeRealtime === 'function') subscribeRealtime();
 
-      // 3. 내 버디 리스트에 포함된 모든 친구들의 상세 정보(닉네임, 상태 등)를 통째로 가져옵니다!
+      // 3. 내 버디 리스트에 포함된 모든 친구들의 상세 정보를 가져옵니다.
       const { data: buddyList, error: buddyError } = await db
         .from('user_status')
         .select('*')
         .in('id', S.buddyIds);
 
       if (!buddyError && buddyList) {
-        // 가져온 친구 목록을 화면에 예쁘게 그려줍니다!
         renderBuddies(buddyList);
         return;
       }
     }
 
-    // 버디가 없다면 빈 화면 처리
     renderBuddies([]);
 
   } catch (err) {
@@ -1046,7 +1043,6 @@ async function loadBuddies() {
     renderBuddies([]);
   }
 }
-
 /* ═══════════════════════════════════════════════
    ⑨ 앱 진입
 ═══════════════════════════════════════════════ */
