@@ -1075,11 +1075,34 @@ function updateStatusUI() {
    ⑪ 버디 목록
 ═══════════════════════════════════════════════ */
 async function loadBuddies() {
-  if (!S.buddyIds.length) { renderBuddies([]); return; }
-  const { data } = await db.from('user_status')
-    .select('id, nickname, status, target_book')
-    .in('id', S.buddyIds);
-  renderBuddies(data ?? []);
+  try {
+    if (!S.user?.id) return;
+
+    // 1. 데이터베이스(user_status)에서 내 계정에 저장된 partner_id를 쏙 뽑아옵니다.
+    const { data: myStatus, error: myError } = await db
+      .from('user_status')
+      .select('partner_id')
+      .eq('id', S.user.id)
+      .single();
+
+    if (myError) throw myError;
+
+    // 2. 저장된 partner_id가 있다면 메모리(S)에 안전하게 복구하고 매칭시킵니다!
+    if (myStatus && myStatus.partner_id) {
+      S.partnerId = myStatus.partner_id;
+      if (S.user) S.user.partner_id = myStatus.partner_id;
+      
+      // 실시간 통로도 한 번 더 든든하게 열어줍니다.
+      if (typeof subscribeRealtime === 'function') subscribeRealtime();
+      
+      console.log("버디 복구 완료:", S.partnerId);
+    } else {
+      console.log("저장된 버디 코드가 없습니다.");
+    }
+
+  } catch (err) {
+    console.error("버디 불러오기 실패:", err.message);
+  }
 }
 
 function renderBuddies(list) {
