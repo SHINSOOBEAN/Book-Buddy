@@ -1241,7 +1241,7 @@ async function submitFeed() {
         nickname:    S.user.nickname, 
         book_title:  book,
         page_info:   pages,           
-        content:     content
+        content:     content,
         image_src:   S.pendingImage ?? null
     });
     if (error) throw new Error(error.message);
