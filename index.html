@@ -1345,37 +1345,69 @@ async function submitFeed() {
   const book    = document.getElementById('f-book').value.trim();
   const pages   = document.getElementById('f-pages').value.trim();
   const content = document.getElementById('f-content').value.trim();
-  if (!book || !pages || !content) { document.getElementById('f-book').focus(); return; }
+  
+  // 필수 입력값 체크
+  if (!book || !pages || !content) { 
+    const fBook = document.getElementById('f-book');
+    if (fBook) fBook.focus(); 
+    return; 
+  }
 
   const btn = document.getElementById('submit-btn');
   btn.innerHTML = '<span class="spinner"></span>저장 중...';
   btn.disabled  = true;
 
- try {
+  try {
+    // 💡 [안전장치 1] 내 이메일 앞자리를 닉네임으로 추출 (S.user.nickname 공백 방지)
+    const myNickname = S.user?.email ? S.user.email.split('@')[0] : '사용자';
+
+    // 💡 [안전장치 2] Supabase에 글 저장하기
     const { error } = await db.from('book_feeds').insert({
         user_id:     S.user.id,
-        nickname:    S.user.nickname, 
+        
+        // 이름 관련 가능한 컬럼명 다 찔러넣기
+        nickname:    myNickname,       
+        user_name:   myNickname,       
+        
         book_title:  book,
-        page_info:   pages,           
+        
+        // 페이지 관련 가능한 컬럼명 다 찔러넣기
+        page_info:   pages,            
+        pages:       pages,            
+        
         content:     content,
-        image_src:   S.pendingImage ?? null
+        
+        // 이미지 주소 (S.pendingImage가 있으면 넣고, 없으면 null)
+        image_src:   S.pendingImage || null
     });
+    
     if (error) throw new Error(error.message);
 
+    // 🎉 저장 성공 시 입력창 및 이미지 임시 메모리 초기화
     S.pendingImage = null;
     ['f-book', 'f-pages', 'f-content'].forEach(id => {
-      document.getElementById(id).value = '';
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     });
-    document.getElementById('f-fname').textContent = '';
+    
+    const fname = document.getElementById('f-fname');
+    if (fname) fname.textContent = '';
+    
+    // 모달 닫고 피드 새로고침
     closeModal('write-modal');
-    await renderFeed();
+    if (typeof renderFeed === 'function') {
+      await renderFeed();
+    }
+    
   } catch (e) {
+    console.error("피드 등록 실패 디버그 로그:", e);
     alert(`저장 실패: ${e.message}`);
   } finally {
-    btn.innerHTML = '등록하기'; btn.disabled = false;
+    btn.innerHTML = '등록하기'; 
+    btn.disabled = false;
   }
 }
-
+  
 async function deleteFeed(id) {
   if (!confirm('이 게시물을 삭제할까요?')) return;
   await db.from('book_feeds').delete().eq('id', id).eq('user_id', S.user.id);
